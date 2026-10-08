@@ -1,0 +1,443 @@
+/* EDIT THESE: Modus Operandi colors and sizing */
+:root {
+  /* default = vertical; any other value (e.g. horizontal) = horizontal. */
+  --verticaltext: default;
+  /* Expression TTS: yes = enabled, no = disabled (default).
+     TTS only plays when both audio and SentenceAudio are blank.
+     Use JavaScript language codes: ja-JP (Japanese), en-US (US English).
+     Voices: comma-separated system voice names in preference order,
+     e.g. "Otoya,Kyoko". Empty = an available voice for the language. */
+  --tts: no;
+  --tts-language: ja-JP;
+  --tts-voices: "Kyoko (Enhanced),Kyoko";
+  --bg-main: #ffffff;
+  --bg-element-default: var(--bg-dim);
+  --fg-cloze: var(--fg-main);
+  --bg-dim: #f2f2f2;
+  /* Image background: var(--bg-dim) = on; transparent = off. */
+  --image-background: transparent;
+  --fg-main: #000000;
+  --fg-dim: #595959;
+  --fg-alt: #193668;
+  --border: #9f9f9f;
+  --blue: #0031a9;
+  --cyan: #005f5f;
+  --bg-blue-nuanced: #ecedff;
+  --bg-cyan-nuanced: #e0f2fa;
+  --bg-magenta-nuanced: #f8e6f5;
+  --bg-lavender: #dfcdfa;
+  --bg-yellow-nuanced: #f8f0d0;
+  --bg-green-nuanced: #e0f6e0;
+  --bg-red-nuanced: #ffe8e8;
+
+  /* Used when pitch information is missing or cannot be resolved.
+     Options: default, heiban (blue), atamadaka (red), nakadaka (yellow),
+              odaka (green), kifuku (magenta/purple). */
+  --default-pitch-category: default;
+
+  /* Pitch line and panel-edge colors. */
+  --pitch-default: var(--fg-cloze);
+  --pitch-heiban: #0031a9;
+  --pitch-atamadaka: #a60000;
+  --pitch-nakadaka: #884900;
+  --pitch-odaka: #006800;
+  --pitch-kifuku: #531ab6;
+  /* Intense theme variants for back furigana. */
+  --pitch-reading-heiban: #0000ff;
+  --pitch-reading-atamadaka: #d00000;
+  --pitch-reading-nakadaka: #808000;
+  --pitch-reading-odaka: #008900;
+  --pitch-reading-kifuku: #dd22dd;
+  --pitch-size: 21px;
+  --audio-button-size: 44px;
+  --audio-button-radius: 12px;
+  --audio-icon-size: 24px;
+  --pitch-panel-padding: 5px 11px;
+  --pitch-panel-radius: 10px;
+
+  --page-width: 1100px;
+  --page-padding: 24px;
+  --mobile-page-padding: 12px;
+  --panel-height: calc(100vh - 48px);
+  --horizontal-sentence-max-height: 40vh;
+  --mobile-panel-height: calc(100vh - 24px);
+  --sentence-gap: 20px;
+  --mobile-sentence-gap: 14px;
+  --sentence-size: 30px;
+  --ruby-size: 0.65em;
+  --column-spacing: 2.15;
+  --definition-size: 18px;
+  --mobile-definition-size: 16px;
+  --expression-size: 27px;
+  --panel-padding: 28px;
+  --mobile-panel-padding: 16px;
+  --corner-radius: 14px;
+  /* Space to keep for an image when the definition needs to scroll. */
+  --image-reserved-height: 240px;
+  --definition-min-visible: 90px;
+  --image-gap: 20px;
+  --cloze-line-color: var(--fg-main);
+  --cloze-line-width: 2px;
+  --cloze-line-offset: 0.12em;
+  --cloze-color: var(--fg-cloze);
+  --reading-color: var(--fg-cloze);
+  --jp-font: "Yu Mincho", "Hiragino Mincho ProN", "Noto Serif CJK JP", "Noto Serif JP", serif;
+  --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Keep the same page width before and after revealing the answer. */
+html { overflow-y: scroll; }
+.card, .card.nightMode, .nightMode .card {
+  margin: 0;
+  padding: var(--page-padding);
+  background: var(--bg-main);
+  color: var(--fg-main);
+  font-family: var(--ui-font);
+  font-size: var(--definition-size);
+  text-align: left;
+  box-sizing: border-box;
+}
+.jp-note, .answer-side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  grid-template-rows: minmax(0, 1fr);
+  width: 100%; max-width: var(--page-width);
+  height: var(--panel-height); min-height: 260px;
+  margin: 0 auto;
+}
+.jp-note *, .answer-panel, .answer-panel * { box-sizing: border-box; }
+/* Both faces reserve the identical right-hand sentence area. */
+.answer-side > .jp-note { display: contents; }
+.sentence-panel {
+  grid-column: 2; grid-row: 1;
+  /* Start at the first (rightmost) column; overflow scrolls toward the left. */
+  direction: rtl;
+  min-width: 0; min-height: 0; height: 100%;
+  padding: var(--panel-padding);
+  padding-left: var(--sentence-gap);
+  border-left: 1px solid var(--border);
+  overflow-x: auto; overflow-y: hidden;
+  background: var(--bg-main);
+}
+.vertical-sentence {
+  writing-mode: vertical-rl; -webkit-writing-mode: vertical-rl;
+  text-orientation: mixed;
+  height: 100%;
+  direction: ltr;
+  font-family: var(--jp-font); font-size: var(--sentence-size);
+  line-height: var(--column-spacing); letter-spacing: 0.06em;
+  overflow-wrap: anywhere; line-break: strict; white-space: normal;
+}
+.target-word {
+  font-weight: 700; color: var(--cloze-color);
+  /* Vertical-text underline: a side line that does not affect spacing. */
+  text-decoration-line: underline;
+  text-decoration-color: var(--cloze-line-color);
+  text-decoration-thickness: var(--cloze-line-width);
+  text-underline-position: right;
+  text-underline-offset: var(--cloze-line-offset);
+  text-decoration-skip-ink: none;
+}
+.answer-side {
+  --accent-color: var(--fg-cloze);
+  --accent-reading-color: var(--fg-cloze);
+}
+.answer-side .target-word,
+.answer-side .answer-expression { color: var(--accent-color); }
+.answer-side .target-word { text-decoration: none; }
+.vertical-sentence ruby { ruby-position: over; ruby-align: center; }
+.vertical-sentence rt {
+  font-size: var(--ruby-size); font-weight: 500; line-height: 1;
+  letter-spacing: 0; color: transparent;
+  -webkit-text-fill-color: transparent; text-shadow: none;
+}
+.answer-side .vertical-sentence rt {
+  color: var(--accent-reading-color, var(--fg-cloze));
+  -webkit-text-fill-color: var(--accent-reading-color, var(--fg-cloze));
+}
+.furigana-source { display: none !important; }
+/* Answer content occupies only the reserved left column. */
+.answer-panel {
+  grid-column: 1; grid-row: 1; z-index: 1;
+  min-width: 0; min-height: 0; height: 100%;
+  padding: 16px var(--panel-padding) 16px 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.answer-heading {
+  display: flex; gap: 12px; align-items: center;
+  flex-wrap: wrap; margin-bottom: 18px; flex: 0 0 auto;
+}
+.answer-expression {
+  font-family: var(--jp-font); font-size: var(--expression-size);
+  font-weight: 700; color: var(--cloze-color); overflow-wrap: anywhere;
+}
+/* Fallback appearance before the script applies the chosen theme. */
+.definition, .answer-pitch {
+  --accent-color: var(--fg-cloze);
+  --accent-reading-color: var(--fg-cloze);
+  --accent-background: var(--bg-element-default);
+}
+.answer-pitch {
+  font-family: var(--jp-font); font-size: var(--pitch-size);
+  font-weight: 400; color: var(--fg-main); line-height: 1.65;
+  min-width: 0; max-width: 100%; overflow-x: auto;
+  padding: var(--pitch-panel-padding);
+  border-left: none;
+  border-radius: var(--pitch-panel-radius);
+  background: var(--accent-background);
+}
+.answer-pitch.pitch-multiple {
+  padding: 0; border-left: 0; background: transparent;
+}
+.answer-pitch ol, .answer-pitch ul {
+  display: flex; flex-wrap: wrap; gap: 8px 10px;
+  list-style: none; padding: 0; margin: 0;
+}
+.answer-pitch li { margin: 0; }
+.answer-pitch.pitch-multiple [data-accent-category] {
+  display: inline-block; padding: var(--pitch-panel-padding);
+  border-left: none;
+  border-radius: var(--pitch-panel-radius);
+  background: var(--accent-background);
+}
+.answer-side[data-accent-category="default"],
+.definition[data-accent-category="default"],
+.answer-pitch[data-accent-category="default"],
+.answer-pitch [data-accent-category="default"] {
+  --accent-color: var(--fg-cloze);
+  --accent-reading-color: var(--fg-cloze);
+  --accent-background: var(--bg-element-default);
+}
+.answer-side[data-accent-category="heiban"],
+.definition[data-accent-category="heiban"],
+.answer-pitch[data-accent-category="heiban"],
+.answer-pitch [data-accent-category="heiban"] {
+  --accent-color: var(--pitch-heiban);
+  --accent-reading-color: var(--pitch-reading-heiban);
+  --accent-background: var(--bg-blue-nuanced);
+}
+.answer-side[data-accent-category="atamadaka"],
+.definition[data-accent-category="atamadaka"],
+.answer-pitch[data-accent-category="atamadaka"],
+.answer-pitch [data-accent-category="atamadaka"] {
+  --accent-color: var(--pitch-atamadaka);
+  --accent-reading-color: var(--pitch-reading-atamadaka);
+  --accent-background: var(--bg-red-nuanced);
+}
+.answer-side[data-accent-category="nakadaka"],
+.definition[data-accent-category="nakadaka"],
+.answer-pitch[data-accent-category="nakadaka"],
+.answer-pitch [data-accent-category="nakadaka"] {
+  --accent-color: var(--pitch-nakadaka);
+  --accent-reading-color: var(--pitch-reading-nakadaka);
+  --accent-background: var(--bg-yellow-nuanced);
+}
+.answer-side[data-accent-category="odaka"],
+.definition[data-accent-category="odaka"],
+.answer-pitch[data-accent-category="odaka"],
+.answer-pitch [data-accent-category="odaka"] {
+  --accent-color: var(--pitch-odaka);
+  --accent-reading-color: var(--pitch-reading-odaka);
+  --accent-background: var(--bg-green-nuanced);
+}
+.answer-side[data-accent-category="kifuku"],
+.definition[data-accent-category="kifuku"],
+.answer-pitch[data-accent-category="kifuku"],
+.answer-pitch [data-accent-category="kifuku"] {
+  --accent-color: var(--pitch-kifuku);
+  --accent-reading-color: var(--pitch-reading-kifuku);
+  --accent-background: var(--bg-magenta-nuanced);
+}
+.pitch-category-source { display: none !important; }
+.answer-audio {
+  margin-left: auto; display: flex; align-items: center;
+  flex-wrap: wrap; gap: 8px;
+}
+.answer-audio > span { display: inline-flex; align-items: center; gap: 8px; }
+.answer-audio .expression-tts[hidden] { display: none !important; }
+.answer-audio :is(.replay-button, .soundLink, .replaybutton) {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: var(--audio-button-size); height: var(--audio-button-size);
+  padding: 0; margin: 0; flex: 0 0 auto;
+  border: 1px solid var(--border); border-radius: var(--audio-button-radius);
+  background: var(--bg-dim); color: var(--fg-main);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
+  text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background-color 130ms, border-color 130ms, transform 130ms;
+}
+.answer-audio :is(.replay-button, .soundLink, .replaybutton) svg {
+  display: block; width: var(--audio-icon-size); height: var(--audio-icon-size);
+  color: var(--fg-main);
+}
+.answer-audio :is(.replay-button, .soundLink, .replaybutton) svg circle {
+  fill: none !important; stroke: none !important;
+}
+.answer-audio :is(.replay-button, .soundLink, .replaybutton) svg path {
+  fill: currentColor !important; stroke: none !important;
+}
+@media (hover: hover) {
+  .answer-audio :is(.replay-button, .soundLink, .replaybutton):hover {
+    background: var(--bg-main); border-color: var(--fg-dim);
+    transform: translateY(-1px);
+  }
+}
+.answer-audio :is(.replay-button, .soundLink, .replaybutton):active {
+  transform: scale(0.95);
+}
+.answer-audio :is(.replay-button, .soundLink, .replaybutton):focus-visible {
+  outline: 2px solid var(--fg-main); outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .answer-audio :is(.replay-button, .soundLink, .replaybutton) { transition: none; }
+}
+/* Flex computes the space remaining after the heading and optional image. */
+.definition {
+  flex: 0 1 auto; min-height: 0;
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  border-left: none;
+  padding: 14px 16px;
+  border-radius: 0 var(--corner-radius) var(--corner-radius) 0;
+  /* Rounded caps on the straight left accent; stays fixed during scrolling. */
+  background:
+    radial-gradient(circle, var(--accent-color) 1.5px, transparent 1.5px)
+      left top / 3px 3px no-repeat,
+    radial-gradient(circle, var(--accent-color) 1.5px, transparent 1.5px)
+      left bottom / 3px 3px no-repeat,
+    linear-gradient(var(--accent-color), var(--accent-color))
+      left center / 3px calc(100% - 3px) no-repeat
+      var(--accent-background);
+  font-size: var(--definition-size); line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.definition ol, .definition ul { margin: 0; padding-left: 1.3em; }
+.definition p { margin: 0 0 0.6em; }
+.definition p:last-child { margin-bottom: 0; }
+.definition a { color: var(--blue); }
+.answer-image {
+  flex: 0 0 auto;
+  margin-top: var(--image-gap); padding: 10px;
+  border-radius: var(--corner-radius);
+  background: var(--image-background); text-align: center;
+}
+.answer-image img {
+  display: block; max-width: 100%;
+  max-height: 100%;
+  width: auto; height: auto; margin: 0 auto;
+  object-fit: contain; border-radius: 0;
+}
+.answer-image p, .answer-image > div { margin: 0; }
+@media (max-width: 600px) {
+  .card { padding: var(--mobile-page-padding); }
+  .jp-note, .answer-side {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    height: var(--mobile-panel-height);
+  }
+  .sentence-panel { padding: var(--mobile-panel-padding); padding-left: var(--mobile-sentence-gap); }
+  .answer-panel { padding: 12px var(--mobile-panel-padding) 12px 0; }
+  .definition { padding: 10px; font-size: var(--mobile-definition-size); }
+  .answer-image { padding: 6px; }
+}
+
+/* Horizontal option: same sentence area on both faces, answer below it. */
+html[data-note-layout="horizontal"] .jp-note,
+html[data-note-layout="horizontal"] .answer-side {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+html[data-note-layout="horizontal"] .sentence-panel {
+  grid-column: 1; grid-row: 1;
+  display: block; height: auto; direction: ltr;
+  max-height: var(--horizontal-sentence-max-height);
+  border-left: 0; border-bottom: 1px solid var(--border);
+  padding: 16px var(--panel-padding);
+  overflow-x: hidden; overflow-y: auto;
+}
+html[data-note-layout="horizontal"] .vertical-sentence {
+  writing-mode: horizontal-tb; -webkit-writing-mode: horizontal-tb;
+  width: 100%; min-width: 0; height: auto; line-height: 1.85;
+}
+html[data-note-layout="horizontal"] .target-word {
+  text-underline-position: under;
+}
+html[data-note-layout="horizontal"] .answer-panel {
+  grid-column: 1; grid-row: 2;
+  padding: 20px 0 0;
+}
+@media (max-width: 600px) {
+  html[data-note-layout="horizontal"] .sentence-panel {
+    padding: var(--mobile-panel-padding);
+  }
+}
+
+/* Vertical layout only */
+html[data-note-layout="vertical"] .sentence-panel {
+  width: max-content;
+}
+
+html[data-note-layout="vertical"] .vertical-sentence {
+  width: max-content;
+  min-width: calc(var(--sentence-size) * var(--column-spacing));
+}
+
+/* Anki night mode only: supplied dark palette. */
+.nightMode, .night_mode, :root.night-mode,
+.card.nightMode, .nightMode .card {
+  --bg-main: #000000;
+  --bg-dim: #1e1e1e;
+  --fg-main: #ffffff;
+  --fg-dim: #989898;
+  --fg-alt: #c6daff;
+  --border: #646464;
+  --blue: #2fafff;
+  --cyan: #6ae4b9;
+  --bg-blue-nuanced: #12154a;
+  --bg-cyan-nuanced: #042837;
+  --bg-magenta-nuanced: #2f0c3f;
+  --bg-lavender: #38325c;
+  --bg-yellow-nuanced: #381d0f;
+  --bg-green-nuanced: #092f1f;
+  --bg-red-nuanced: #3a0c14;
+
+  --pitch-heiban: #2fafff;
+  --pitch-atamadaka: #ff5f59;
+  --pitch-nakadaka: #fec43f;
+  --pitch-odaka: #44bc44;
+  --pitch-kifuku: #b6a0ff;
+  --pitch-reading-heiban: #338fff;
+  --pitch-reading-atamadaka: #ff5f5f;
+  --pitch-reading-nakadaka: #efef00;
+  --pitch-reading-odaka: #44df44;
+  --pitch-reading-kifuku: #ff66ff;
+
+  /* Resolve the semantic aliases against the dark colors in this scope. */
+  --bg-element-default: var(--bg-dim);
+  --fg-cloze: var(--fg-main);
+  --pitch-default: var(--fg-cloze);
+  --cloze-line-color: var(--fg-main);
+  --cloze-color: var(--fg-cloze);
+  --reading-color: var(--fg-cloze);
+}
+
+
+/* Japanese pitch names: hover or keyboard focus. */
+.pitch-name-tooltip {
+  position: fixed; z-index: 10000;
+  pointer-events: none;
+  padding: 12px 14px 8px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-dim); color: var(--fg-main);
+  font-family: var(--jp-font); font-size: 18px; line-height: 1.5;
+  writing-mode: horizontal-tb;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
+}
+.pitch-name-tooltip[hidden] { display: none !important; }
+.pitch-name-tooltip ruby { ruby-align: center; ruby-position: over; }
+.pitch-name-tooltip rt {
+  font-size: 0.55em; line-height: 1; color: var(--fg-main);
+  -webkit-text-fill-color: var(--fg-main);
+}
+.answer-pitch [tabindex="0"]:focus-visible {
+  outline: 2px solid var(--accent-color); outline-offset: 3px;
+}

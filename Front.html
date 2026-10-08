@@ -1,0 +1,139 @@
+<main class="jp-note">
+  <section class="sentence-panel">
+    <div class="vertical-sentence"><span class="sentence-prefix">{{cloze-prefix}}</span><span class="target-word">{{cloze-body}}</span><span class="sentence-suffix">{{cloze-suffix}}</span></div>
+  </section>
+</main>
+<div class="furigana-source" hidden data-source="sentence">{{sentence-furigana-plain}}</div>
+<div class="furigana-source" hidden data-source="word">{{furigana-plain}}</div>
+
+<script>
+(function () {
+  if (window.__jpTtsCleanup) window.__jpTtsCleanup();
+  var layoutSetting = getComputedStyle(document.documentElement)
+    .getPropertyValue("--verticaltext").trim().toLowerCase();
+  document.documentElement.setAttribute("data-note-layout",
+    !layoutSetting || layoutSetting === "default" ? "vertical" : "horizontal");
+  var root = document.querySelector(".jp-note");
+  if (!root) return;
+  var body = root.querySelector(".target-word");
+  if (!body || body.getAttribute("data-ruby-ready")) return;
+  body.setAttribute("data-ruby-ready", "true");
+
+  function clean(s) { return s.replace(/\s+/g, ""); }
+  function text(el) {
+    var copy = el.cloneNode(true);
+    Array.prototype.forEach.call(copy.querySelectorAll("rt, rp"), function (n) { n.remove(); });
+    return clean(copy.textContent || "");
+  }
+  var target = text(body);
+  if (!target || body.querySelector("ruby")) return;
+  var prefix = text(root.querySelector(".sentence-prefix"));
+  var suffix = text(root.querySelector(".sentence-suffix"));
+  var han = /[\u3400-\u9fff々〆ヵヶ]/;
+  var kana = /^[ぁ-ゖァ-ヺー]*$/;
+  var annotations = [];
+  var sources = document.querySelectorAll(".furigana-source");
+
+  function hits(s, value) {
+    var found = [], at = 0, index;
+    while (value && (index = s.indexOf(value, at)) !== -1) {
+      found.push(index); at = index + 1;
+    }
+    return found;
+  }
+  function parse(raw) {
+    var re = /([^\s[\]。、，．！？!?「」『』（）()〈〉《》【】・：:；;]+)\s*\[([^\[\]]+)\]/g;
+    var plain = "", entries = [], last = 0, m;
+    while ((m = re.exec(raw))) {
+      plain += clean(raw.slice(last, m.index));
+      var base = clean(m[1]), reading = clean(m[2]), start = plain.length;
+      plain += base;
+      // Separate dictionary okurigana when the reading agrees with it.
+      var tail = base.match(/[ぁ-ゖァ-ヺー]+$/);
+      if (tail && base.length > tail[0].length && reading.slice(-tail[0].length) === tail[0]) {
+        base = base.slice(0, -tail[0].length);
+        reading = reading.slice(0, -tail[0].length);
+      }
+      if (base && reading && han.test(base)) entries.push({base:base, reading:reading, start:start, end:start+base.length});
+      last = re.lastIndex;
+    }
+    plain += clean(raw.slice(last));
+    return {plain:plain, entries:entries};
+  }
+  function context(plain, start) {
+    var score = 0, i = prefix.length-1, j = start-1;
+    while (i >= 0 && j >= 0 && prefix[i--] === plain[j--]) score++;
+    i = 0; j = start+target.length;
+    while (i < suffix.length && j < plain.length && suffix[i++] === plain[j++]) score++;
+    return score;
+  }
+
+  for (var s = 0; s < sources.length; s++) {
+    var parsed = parse(sources[s].textContent || "");
+    if (!parsed.entries.length) continue;
+    var exact = hits(parsed.plain, target).map(function (start) {
+      return {start:start, score:context(parsed.plain, start)};
+    }).sort(function (a,b) { return b.score-a.score; });
+    var selected = [];
+    if (exact.length && (exact.length === 1 || exact[0].score > exact[1].score)) {
+      var offset = exact[0].start;
+      parsed.entries.forEach(function (e) {
+        if (e.start >= offset && e.end <= offset+target.length) {
+          selected.push({start:e.start-offset, end:e.end-offset, reading:e.reading});
+        }
+      });
+    } else if (!exact.length) {
+      // Match complete written bases; preserve the card's conjugation.
+      parsed.entries.forEach(function (e) {
+        var positions = hits(target, e.base).filter(function (at) {
+          if (at && han.test(target[at-1])) return false;
+          var rest = target.slice(at+e.base.length);
+          if (rest && han.test(rest[0])) return false;
+          var sourceRest = parsed.plain.slice(e.end);
+          if (sourceRest && han.test(sourceRest[0])) return false;
+          var stop = /[。、，．！？!?「」『』（）()・]/;
+          return kana.test(rest.split(stop)[0]) && kana.test(sourceRest.split(stop)[0]);
+        });
+        if (positions.length === 1) selected.push({start:positions[0], end:positions[0]+e.base.length, reading:e.reading});
+      });
+    }
+    if (selected.length) { annotations = selected; break; }
+  }
+  // Do not guess between conflicting or overlapping readings.
+  annotations.sort(function (a,b) { return a.start-b.start || a.end-b.end; });
+  var accepted = [];
+  for (var a = 0; a < annotations.length; a++) {
+    var item = annotations[a], prev = accepted[accepted.length-1];
+    if (prev && item.start < prev.end) {
+      if (item.start === prev.start && item.end === prev.end && item.reading === prev.reading) continue;
+      return;
+    }
+    accepted.push(item);
+  }
+  function positions() {
+    var walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, {
+      acceptNode:function (n) {
+        return n.parentElement.closest("rt, rp") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var result = [], node;
+    while ((node = walker.nextNode())) {
+      for (var i = 0; i < node.data.length; i++) {
+        if (!/\s/.test(node.data[i])) result.push({node:node, offset:i});
+      }
+    }
+    return result;
+  }
+  accepted.reverse().forEach(function (e) {
+    var map = positions(), first = map[e.start], last = map[e.end-1];
+    if (!first || !last) return;
+    var range = document.createRange();
+    range.setStart(first.node, first.offset);
+    range.setEnd(last.node, last.offset+1);
+    var ruby = document.createElement("ruby"), rt = document.createElement("rt");
+    rt.textContent = e.reading;
+    ruby.appendChild(range.extractContents()); ruby.appendChild(rt);
+    range.insertNode(ruby);
+  });
+})();
+</script>

@@ -1,0 +1,370 @@
+<div class="answer-side">
+  {{FrontSide}}
+  <aside class="answer-panel">
+    <div class="answer-heading">
+      <div class="answer-expression">{{expression}}</div>
+      {{#pitch-accents}}<div class="answer-pitch">{{pitch-accents}}</div>{{/pitch-accents}}
+      {{^pitch-accents}}{{#reading}}<div class="answer-pitch answer-reading">{{reading}}</div>{{/reading}}{{/pitch-accents}}
+      <div class="answer-audio">
+        {{#audio}}<span>{{audio}}</span>{{/audio}}
+        {{^audio}}{{^SentenceAudio}}<span class="expression-tts" hidden></span>{{/SentenceAudio}}{{/audio}}
+        {{#SentenceAudio}}<span>{{SentenceAudio}}</span>{{/SentenceAudio}}
+      </div>
+    </div>
+    <div class="definition">{{glossary-plain-no-dictionary}}</div>
+    {{#Image}}<div class="answer-image">{{Image}}</div>{{/Image}}
+  </aside>
+</div>
+
+<div class="pitch-category-source" hidden>{{pitch-accent-categories}}</div>
+
+<script>
+(function () {
+  if (window.__jpTtsCleanup) window.__jpTtsCleanup();
+  var box = document.querySelector(".expression-tts");
+  var expression = document.querySelector(".answer-expression");
+  var style = getComputedStyle(document.documentElement);
+  function setting(name) {
+    return style.getPropertyValue(name).trim().replace(/^(["'])(.*)\1$/, "$2");
+  }
+  if (setting("--tts").toLowerCase() !== "yes" || !box || !expression ||
+      !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+  // Read the rendered field without pronouncing ruby annotations twice.
+  var copy = expression.cloneNode(true);
+  Array.prototype.forEach.call(copy.querySelectorAll("rt, rp"), function (node) { node.remove(); });
+  var text = copy.textContent.trim();
+  if (!text) return;
+  var language = setting("--tts-language") || "ja-JP";
+  function voiceName(name) {
+    return name.replace(/^Apple_/i, "").replace(/_/g, " ").toLowerCase().trim();
+  }
+  var preferred = setting("--tts-voices").split(",").map(voiceName).filter(Boolean);
+  var synth = window.speechSynthesis;
+  var utterance = null, timer = null, started = false, active = true;
+  var button = document.createElement("button");
+  button.type = "button";
+  button.className = "replay-button";
+  button.setAttribute("aria-label", "Read expression aloud");
+  button.title = "Read expression aloud";
+  button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+  box.appendChild(button);
+  box.hidden = false;
+
+  function speak() {
+    if (!active || !box.isConnected) return;
+    var voices = synth.getVoices().filter(function (voice) {
+      return voice.localService && voice.lang.toLowerCase() === language.toLowerCase();
+    });
+    var selected = null;
+    preferred.some(function (name) {
+      selected = voices.filter(function (voice) {
+        return voiceName(voice.name) === name || voiceName(voice.voiceURI) === name;
+      })[0];
+      return !!selected;
+    });
+    selected = selected || voices.filter(function (voice) { return voice.default; })[0] || voices[0];
+    if (!selected) {
+      button.title = "No system voice available for " + language;
+      return;
+    }
+    started = true;
+    if (utterance) synth.cancel();
+    utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language;
+    utterance.voice = selected;
+    utterance.onerror = function () {
+      if (active) button.title = "Click to retry reading the expression";
+    };
+    button.title = "Read expression aloud";
+    synth.speak(utterance);
+  }
+  function voicesReady() {
+    if (!started) speak();
+  }
+  function cleanup() {
+    active = false;
+    clearTimeout(timer);
+    synth.removeEventListener("voiceschanged", voicesReady);
+    button.removeEventListener("click", speak);
+    window.removeEventListener("pagehide", cleanup);
+    if (utterance) synth.cancel();
+    box.hidden = true;
+    button.remove();
+    window.__jpTtsCleanup = null;
+  }
+  button.addEventListener("click", speak);
+  synth.addEventListener("voiceschanged", voicesReady);
+  window.addEventListener("pagehide", cleanup);
+  window.__jpTtsCleanup = cleanup;
+  // Some webviews populate system voices asynchronously.
+  timer = setTimeout(voicesReady, 500);
+  voicesReady();
+})();
+</script>
+
+<script>
+(function () {
+  var layoutSetting = getComputedStyle(document.documentElement)
+    .getPropertyValue("--verticaltext").trim().toLowerCase();
+  document.documentElement.setAttribute("data-note-layout",
+    !layoutSetting || layoutSetting === "default" ? "vertical" : "horizontal");
+  if (window.__jpPitchTooltipCleanup) window.__jpPitchTooltipCleanup();
+  var pitch = document.querySelector(".answer-pitch");
+  var definition = document.querySelector(".definition");
+  var answerSide = document.querySelector(".answer-side");
+  var source = document.querySelector(".pitch-category-source");
+  var labels = source ? source.textContent.toLowerCase() : "";
+  var categories = [];
+  var names = {
+    heiban: /\bheiban\b|平板/,
+    atamadaka: /\batamadaka\b|頭高/,
+    nakadaka: /\bnakadaka\b|中高/,
+    odaka: /\bodaka\b|尾高/,
+    kifuku: /\bkifuku\b|起伏/
+  };
+  Object.keys(names).forEach(function (name) {
+    if (names[name].test(labels)) categories.push(name);
+  });
+
+  // This is a visual fallback, not an inferred pitch category.
+  var fallback = getComputedStyle(document.documentElement)
+    .getPropertyValue("--default-pitch-category").trim().toLowerCase();
+  if (fallback !== "default" && !Object.prototype.hasOwnProperty.call(names, fallback)) fallback = "default";
+  function theme(element, category) {
+    if (element) element.setAttribute("data-accent-category", category);
+  }
+  var single = categories.length === 1 ? categories[0] : null;
+  theme(definition, single || fallback);
+  theme(answerSide, single || fallback);
+  if (!pitch) return;
+  var multiple = categories.length > 1 && !pitch.classList.contains("answer-reading");
+  if (multiple) pitch.classList.add("pitch-multiple");
+  else {
+    pitch.classList.remove("pitch-multiple");
+    theme(pitch, single || fallback);
+  }
+
+  // Fixed-position tooltip stays outside the pitch box's scroll clipping.
+  var patternNames = {
+    heiban: ["平板型", "へいばんがた"],
+    atamadaka: ["頭高型", "あたまだかがた"],
+    nakadaka: ["中高型", "なかだかがた"],
+    odaka: ["尾高型", "おだかがた"],
+    kifuku: ["起伏型", "きふくがた"]
+  };
+  var tooltip = null, tooltipTarget = null, tooltipListeners = [];
+  function hideTooltip() {
+    if (tooltip) tooltip.hidden = true;
+    tooltipTarget = null;
+  }
+  function positionTooltip() {
+    if (!tooltip || !tooltipTarget) return;
+    var rect = tooltipTarget.getBoundingClientRect();
+    var box = tooltip.getBoundingClientRect();
+    var left = Math.max(8, Math.min(rect.left + (rect.width - box.width) / 2,
+      window.innerWidth - box.width - 8));
+    var top = rect.bottom + 8;
+    if (top + box.height > window.innerHeight - 8) top = rect.top - box.height - 8;
+    tooltip.style.left = left + "px";
+    tooltip.style.top = Math.max(8, top) + "px";
+  }
+  function listen(target, event, handler, capture) {
+    target.addEventListener(event, handler, !!capture);
+    tooltipListeners.push(function () { target.removeEventListener(event, handler, !!capture); });
+  }
+  function nameTooltip(target, category) {
+    if (pitch.classList.contains("answer-reading")) return;
+    var name = patternNames[category] || ["判定不明", "はんていふめい"];
+    target.setAttribute("tabindex", "0");
+    target.setAttribute("aria-label", target.textContent.trim() + "：" + name[0] + "（" + name[1] + "）");
+    function show() {
+      if (!tooltip) {
+        tooltip = document.createElement("div");
+        tooltip.className = "pitch-name-tooltip";
+        tooltip.setAttribute("role", "tooltip");
+        document.body.appendChild(tooltip);
+      }
+      var ruby = document.createElement("ruby"), reading = document.createElement("rt");
+      ruby.textContent = name[0]; reading.textContent = name[1]; ruby.appendChild(reading);
+      tooltip.textContent = ""; tooltip.appendChild(ruby);
+      tooltip.hidden = false; tooltipTarget = target;
+      positionTooltip();
+    }
+    listen(target, "mouseenter", show);
+    listen(target, "mouseleave", hideTooltip);
+    listen(target, "focus", show);
+    listen(target, "blur", hideTooltip);
+  }
+  listen(window, "resize", hideTooltip);
+  listen(window, "scroll", hideTooltip, true);
+  listen(document, "keydown", function (event) { if (event.key === "Escape") hideTooltip(); });
+  window.__jpPitchTooltipCleanup = function () {
+    tooltipListeners.forEach(function (remove) { remove(); });
+    if (tooltip) tooltip.remove();
+    window.__jpPitchTooltipCleanup = null;
+  };
+
+  var inflectedOnly = categories.indexOf("kifuku") !== -1 && categories.every(function (name) {
+    return name === "heiban" || name === "kifuku";
+  });
+  function visibleBorder(style, side) {
+    var type = style["border" + side + "Style"];
+    return !!type && type !== "none" && type !== "hidden" &&
+      parseFloat(style["border" + side + "Width"]) > 0;
+  }
+  function lineFor(mora) {
+    var children = mora.children;
+    for (var i = children.length - 1; i >= 0; i--) {
+      var child = children[i];
+      if (child.classList.contains("pronunciation-mora-line")) return child;
+      if (child.tagName === "SPAN" && !child.textContent.trim() &&
+          child.style.borderColor && !child.children.length) return child;
+    }
+    return null;
+  }
+  function colorLine(line, category) {
+    line.style.setProperty("border-color", "var(--pitch-" + category + ")", "important");
+  }
+  var groups = [];
+  Array.prototype.forEach.call(pitch.querySelectorAll("span"), function (mora) {
+    var modern = mora.classList.contains("pronunciation-mora") || mora.hasAttribute("data-pitch");
+    var legacy = mora.style.display === "inline-block" && mora.style.position === "relative";
+    if (!modern && !legacy) return;
+    var line = lineFor(mora);
+    if (!line || !mora.textContent.trim()) return;
+    var parent = mora.parentElement;
+    var group = groups.filter(function (g) { return g.parent === parent; })[0];
+    if (!group) { group = {parent:parent, morae:[]}; groups.push(group); }
+    var style = getComputedStyle(line);
+    var high = mora.getAttribute("data-pitch");
+    var next = mora.getAttribute("data-pitch-next");
+    group.morae.push({
+      line:line,
+      text:mora.textContent.replace(/\s+/g, "").normalize("NFC"),
+      high:high === "high" || (high !== "low" && visibleBorder(style, "Top")),
+      drop:(high === "high" && next === "low") || visibleBorder(style, "Right")
+    });
+  });
+  var seenPatterns = Object.create(null);
+  var definitionMatched = false;
+  groups.forEach(function (group) {
+    var morae = group.morae;
+    // Compare the reading and each mora's pitch, not its source dictionary or color.
+    var key = JSON.stringify(morae.map(function (m) {
+      return [m.text, m.high, m.drop];
+    }));
+    if (seenPatterns[key]) {
+      var item = group.parent.closest("li");
+      group.parent.remove();
+      if (item && !item.textContent.trim() && !item.querySelector("img, svg")) item.remove();
+      return;
+    }
+    seenPatterns[key] = true;
+    // A single category still controls the colors directly.
+    if (!multiple) {
+      nameTooltip(group.parent, single);
+      morae.forEach(function (m) { colorLine(m.line, single || fallback); });
+      return;
+    }
+    var drops = [];
+    morae.forEach(function (m, i) { if (m.drop) drops.push(i + 1); });
+    var category = null;
+    if (drops.length <= 1) {
+      var position = drops.length ? drops[0] : 0;
+      var consistent = morae.every(function (m, i) {
+        var expected = position === 0 ? i > 0 : position === 1 ? i === 0 : i > 0 && i < position;
+        return m.high === expected;
+      });
+      if (consistent) {
+        category = position === 0 ? "heiban" :
+          inflectedOnly ? "kifuku" :
+          position === 1 ? "atamadaka" :
+          position === morae.length ? "odaka" : "nakadaka";
+      }
+    }
+    // Mixed noun and inflected categories cannot resolve Kifuku by shape.
+    if (category && category !== "heiban" && categories.indexOf("kifuku") !== -1 && !inflectedOnly) category = null;
+    if (category && categories.indexOf(category) === -1) category = null;
+    theme(group.parent, category || fallback);
+    nameTooltip(group.parent, category);
+    if (category && !definitionMatched) {
+      theme(definition, category);
+      theme(answerSide, category);
+      definitionMatched = true;
+    }
+    // Ambiguous line patterns retain their original line color.
+    if (category) morae.forEach(function (m) { colorLine(m.line, category); });
+  });
+})();
+</script>
+
+<script>
+(function () {
+  if (window.__jpImageSizingCleanup) window.__jpImageSizingCleanup();
+  var panel = document.querySelector(".answer-panel");
+  var box = panel && panel.querySelector(".answer-image");
+  var definition = panel && panel.querySelector(".definition");
+  if (!box || !definition) return;
+  var heading = panel.querySelector(".answer-heading");
+  var images = Array.prototype.slice.call(box.querySelectorAll("img"));
+  if (!images.length) return;
+  var frame = null;
+  function px(value) { return parseFloat(value) || 0; }
+  function outerHeight(element) {
+    if (!element) return 0;
+    var style = getComputedStyle(element);
+    return element.getBoundingClientRect().height + px(style.marginTop) + px(style.marginBottom);
+  }
+  function fit() {
+    frame = null;
+    if (!panel.isConnected) return;
+    var panelStyle = getComputedStyle(panel);
+    var boxStyle = getComputedStyle(box);
+    var usableHeight = panel.clientHeight - px(panelStyle.paddingTop) - px(panelStyle.paddingBottom);
+    var imagePadding = px(boxStyle.paddingTop) + px(boxStyle.paddingBottom);
+    var available = Math.max(0, usableHeight - outerHeight(heading) -
+      px(boxStyle.marginTop) - px(boxStyle.marginBottom) - imagePadding);
+    var width = Math.max(0, box.clientWidth - px(boxStyle.paddingLeft) - px(boxStyle.paddingRight));
+    var fitted = images.map(function (img) {
+      var scale = img.naturalWidth ? Math.min(1, width / img.naturalWidth) : 0;
+      return {img:img, width:img.naturalWidth * scale, height:img.naturalHeight * scale};
+    });
+    var desiredHeight = fitted.reduce(function (sum, item) { return sum + item.height; }, 0);
+    if (!desiredHeight) return;
+    var definitionHeight = definition.scrollHeight;
+    var reserve = Math.min(px(panelStyle.getPropertyValue("--image-reserved-height")), available * 0.4);
+    var minimumDefinition = Math.min(definitionHeight,
+      px(panelStyle.getPropertyValue("--definition-min-visible")));
+    var height = Math.min(desiredHeight, Math.max(0, available - minimumDefinition),
+      Math.max(0, available - definitionHeight, reserve));
+    var scale = Math.min(1, height / desiredHeight);
+    fitted.forEach(function (item) {
+      if (!item.img.naturalWidth) return;
+      // The same factor for width and height preserves the natural proportions.
+      var w = (item.width * scale).toFixed(2) + "px";
+      var h = (item.height * scale).toFixed(2) + "px";
+      if (item.img.style.width !== w) item.img.style.width = w;
+      if (item.img.style.height !== h) item.img.style.height = h;
+    });
+  }
+  function schedule() {
+    if (frame === null) frame = requestAnimationFrame(fit);
+  }
+  var observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedule) : null;
+  if (observer) {
+    observer.observe(panel);
+    observer.observe(definition);
+    if (heading) observer.observe(heading);
+  }
+  images.forEach(function (img) { img.addEventListener("load", schedule); });
+  window.addEventListener("resize", schedule);
+  window.__jpImageSizingCleanup = function () {
+    if (observer) observer.disconnect();
+    if (frame !== null) cancelAnimationFrame(frame);
+    images.forEach(function (img) { img.removeEventListener("load", schedule); });
+    window.removeEventListener("resize", schedule);
+    window.__jpImageSizingCleanup = null;
+  };
+  schedule();
+})();
+</script>
