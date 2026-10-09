@@ -11,12 +11,160 @@
         {{#SentenceAudio}}<span>{{SentenceAudio}}</span>{{/SentenceAudio}}
       </div>
     </div>
-    <div class="definition">{{glossary-plain-no-dictionary}}</div>
+    {{#UseVocabCard}}
+    <div class="answer-sentence" lang="ja">
+      {{#sentence-furigana-plain}}{{furigana:sentence-furigana-plain}}{{/sentence-furigana-plain}}
+      {{^sentence-furigana-plain}}
+        {{#sentence}}{{sentence}}{{/sentence}}
+        {{^sentence}}<span class="sentence-prefix">{{cloze-prefix}}</span><span class="target-word">{{cloze-body}}</span><span class="sentence-suffix">{{cloze-suffix}}</span>{{/sentence}}
+      {{/sentence-furigana-plain}}
+    </div>
+    {{/UseVocabCard}}
+    <div class="definition">
+      <!-- Prefer dictionary-labeled plain definitions; keep the existing fallback order. -->
+      {{#glossary-plain}}<div class="glossary-plain">{{glossary-plain}}</div>{{/glossary-plain}}
+      {{^glossary-plain}}
+        {{#glossary-plain-no-dictionary}}{{glossary-plain-no-dictionary}}{{/glossary-plain-no-dictionary}}
+        {{^glossary-plain-no-dictionary}}
+          {{#glossary-no-dictionary}}{{glossary-no-dictionary}}{{/glossary-no-dictionary}}
+          {{^glossary-no-dictionary}}
+            {{#glossary-first-no-dictionary}}{{glossary-first-no-dictionary}}{{/glossary-first-no-dictionary}}
+            {{^glossary-first-no-dictionary}}
+              {{#glossary-first-brief}}{{glossary-first-brief}}{{/glossary-first-brief}}
+              {{^glossary-first-brief}}
+                {{#glossary-first}}{{glossary-first}}{{/glossary-first}}
+                {{^glossary-first}}
+                  {{#glossary-brief}}{{glossary-brief}}{{/glossary-brief}}
+                  {{^glossary-brief}}
+                    {{#glossary}}{{glossary}}{{/glossary}}
+                  {{/glossary-brief}}
+                {{/glossary-first}}
+              {{/glossary-first-brief}}
+            {{/glossary-first-no-dictionary}}
+          {{/glossary-no-dictionary}}
+        {{/glossary-plain-no-dictionary}}
+      {{/glossary-plain}}
+    </div>
     {{#Image}}<div class="answer-image">{{Image}}</div>{{/Image}}
   </aside>
 </div>
 
 <div class="pitch-category-source" hidden>{{pitch-accent-categories}}</div>
+
+<script>
+(function () {
+  var glossary = document.querySelector(".definition .glossary-plain");
+  if (!glossary || glossary.getAttribute("data-dictionaries-ready")) return;
+  glossary.setAttribute("data-dictionaries-ready", "true");
+
+  // Read logical lines without flattening lists, links, images, or inline formatting.
+  var lines = [], line = {text:"", start:null, end:null};
+  function finish() {
+    if (line.start) lines.push(line);
+    line = {text:"", start:null, end:null};
+  }
+  function visit(node) {
+    if (node.nodeType === 3) {
+      var breaks = /\r\n|\r|\n/g, last = 0, match;
+      function append(start, end) {
+        if (start === end) return;
+        if (!line.start) line.start = {node:node, offset:start};
+        line.end = {node:node, offset:end};
+        line.text += node.data.slice(start, end);
+      }
+      while ((match = breaks.exec(node.data))) {
+        append(last, match.index); finish(); last = breaks.lastIndex;
+      }
+      append(last, node.data.length);
+      return;
+    }
+    if (node.nodeType !== 1) return;
+    if (node.tagName === "BR") { finish(); return; }
+    if (/^(SCRIPT|STYLE|RT|RP)$/.test(node.tagName)) return;
+    var block = /^(DIV|P|LI|OL|UL|DL|DT|DD|SECTION|BLOCKQUOTE|PRE|H[1-6])$/.test(node.tagName);
+    if (block) finish();
+    Array.prototype.forEach.call(node.childNodes, visit);
+    if (block) finish();
+  }
+  visit(glossary); finish();
+  var headers = lines.filter(function (item) {
+    // Dictionary labels occupy an entire line; inline parenthetical readings stay intact.
+    return /^\s*(?:\([^()\r\n]+\)|（[^（）\r\n]+）)\s*$/.test(item.text);
+  });
+  function dictionaryName(value) {
+    return value.trim().replace(/^(?:\((.*)\)|（(.*)）)$/, function (_, ascii, fullWidth) {
+      return ascii === undefined ? fullWidth : ascii;
+    }).trim();
+  }
+  var configuredOrder = getComputedStyle(document.documentElement)
+    .getPropertyValue("--dictionary-order").trim().replace(/^(["'])(.*)\1$/, "$2")
+    .split("|").map(dictionaryName).filter(Boolean);
+  function dividerBefore(node) {
+    var divider = document.createElement("hr");
+    divider.className = "dictionary-divider";
+    node.parentNode.insertBefore(divider, node);
+  }
+  // Work backwards so earlier text offsets remain valid after inserting labels.
+  headers.slice().reverse().forEach(function (item, reversedIndex) {
+    var range = document.createRange();
+    range.setStart(item.start.node, item.start.offset);
+    range.setEnd(item.end.node, item.end.offset);
+    var label = document.createElement("span");
+    label.className = "dictionary-label";
+    label.hidden = true;
+    item.label = label;
+    item.name = dictionaryName(item.text);
+    label.appendChild(range.extractContents());
+    range.insertNode(label);
+    // Remove the line break belonging to the now-hidden dictionary name.
+    var next = label.nextSibling;
+    while (next && next.nodeType === 3 && !next.textContent.trim()) next = next.nextSibling;
+    if (next && next.nodeType === 1 && next.tagName === "BR") next.remove();
+    if (!configuredOrder.length && reversedIndex < headers.length - 1) dividerBefore(label);
+  });
+  if (!configuredOrder.length || !headers.length) return;
+
+  // Include a label's enclosing block when it starts that block, preserving lists
+  // and other dictionary markup when moving the complete section.
+  function boundary(label) {
+    var node = label;
+    while (node.parentNode !== glossary) {
+      var previous = node.previousSibling, atStart = true;
+      while (previous) {
+        if (previous.nodeType !== 3 || previous.textContent.trim()) { atStart = false; break; }
+        previous = previous.previousSibling;
+      }
+      if (!atStart) break;
+      node = node.parentNode;
+    }
+    return node;
+  }
+  headers.forEach(function (item) { item.boundary = boundary(item.label); });
+  var sections = headers.map(function (item, index) {
+    var range = document.createRange();
+    range.setStartBefore(item.boundary);
+    if (index + 1 < headers.length) range.setEndBefore(headers[index + 1].boundary);
+    else range.setEnd(glossary, glossary.childNodes.length);
+    var section = document.createElement("div");
+    section.className = "dictionary-section";
+    section.appendChild(range.cloneContents());
+    var rank = configuredOrder.indexOf(item.name);
+    return {node:section, index:index, rank:rank === -1 ? configuredOrder.length : rank};
+  });
+  // Preserve any content before the first dictionary label.
+  var prefix = document.createRange();
+  prefix.setStart(glossary, 0);
+  prefix.setEndBefore(headers[0].boundary);
+  var preamble = prefix.cloneContents();
+  glossary.textContent = "";
+  glossary.appendChild(preamble);
+  sections.sort(function (a, b) { return a.rank - b.rank || a.index - b.index; });
+  sections.forEach(function (item, index) {
+    glossary.appendChild(item.node);
+    if (index) dividerBefore(item.node);
+  });
+})();
+</script>
 
 <script>
 (function () {
@@ -306,6 +454,7 @@
   var definition = panel && panel.querySelector(".definition");
   if (!box || !definition) return;
   var heading = panel.querySelector(".answer-heading");
+  var sentence = panel.querySelector(".answer-sentence");
   var images = Array.prototype.slice.call(box.querySelectorAll("img"));
   if (!images.length) return;
   var frame = null;
@@ -322,7 +471,7 @@
     var boxStyle = getComputedStyle(box);
     var usableHeight = panel.clientHeight - px(panelStyle.paddingTop) - px(panelStyle.paddingBottom);
     var imagePadding = px(boxStyle.paddingTop) + px(boxStyle.paddingBottom);
-    var available = Math.max(0, usableHeight - outerHeight(heading) -
+    var available = Math.max(0, usableHeight - outerHeight(heading) - outerHeight(sentence) -
       px(boxStyle.marginTop) - px(boxStyle.marginBottom) - imagePadding);
     var width = Math.max(0, box.clientWidth - px(boxStyle.paddingLeft) - px(boxStyle.paddingRight));
     var fitted = images.map(function (img) {
@@ -355,6 +504,7 @@
     observer.observe(panel);
     observer.observe(definition);
     if (heading) observer.observe(heading);
+    if (sentence) observer.observe(sentence);
   }
   images.forEach(function (img) { img.addEventListener("load", schedule); });
   window.addEventListener("resize", schedule);

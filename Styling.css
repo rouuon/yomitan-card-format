@@ -1,5 +1,12 @@
 /* EDIT THESE: Modus Operandi colors and sizing */
 :root {
+  /* Dictionary order for glossary-plain: copy and paste dictionary names from
+     that field, separated by |, in the order you want them on your card.
+     Surrounding parentheses are optional. Only dictionaries present are shown;
+     names not listed here follow in the order they appear in the field.
+     Empty = keep the field's order. Example:
+     --dictionary-order: "明鏡国語辞典　第二版 | Jitendex.org [2026-10-03]"; */
+  --dictionary-order: "";
   /* default = vertical; any other value (e.g. horizontal) = horizontal. */
   --verticaltext: default;
   /* Expression TTS: yes = enabled, no = disabled (default).
@@ -7,7 +14,7 @@
      Use JavaScript language codes: ja-JP (Japanese), en-US (US English).
      Voices: comma-separated system voice names in preference order,
      e.g. "Otoya,Kyoko". Empty = an available voice for the language. */
-  --tts: no;
+  --tts: yes;
   --tts-language: ja-JP;
   --tts-voices: "Kyoko (Enhanced),Kyoko";
   --bg-main: #ffffff;
@@ -64,6 +71,7 @@
   --sentence-gap: 20px;
   --mobile-sentence-gap: 14px;
   --sentence-size: 30px;
+  --vocab-size: 42px;
   --ruby-size: 0.65em;
   --column-spacing: 2.15;
   --definition-size: 18px;
@@ -128,6 +136,8 @@ html { overflow-y: scroll; }
   line-height: var(--column-spacing); letter-spacing: 0.06em;
   overflow-wrap: anywhere; line-break: strict; white-space: normal;
 }
+.vocab-display { --sentence-size: var(--vocab-size); }
+.vocab-display .target-word { text-decoration: none; }
 .target-word {
   font-weight: 700; color: var(--cloze-color);
   /* Vertical-text underline: a side line that does not affect spacing. */
@@ -171,6 +181,18 @@ html { overflow-y: scroll; }
 .answer-expression {
   font-family: var(--jp-font); font-size: var(--expression-size);
   font-weight: 700; color: var(--cloze-color); overflow-wrap: anywhere;
+}
+/* A nonempty UseVocabCard field moves the example sentence to the answer. */
+.answer-sentence {
+  flex: 0 1 auto; min-height: 0; max-height: 25vh;
+  margin-bottom: 18px; overflow: auto;
+  writing-mode: horizontal-tb; direction: ltr;
+  font-family: var(--jp-font); font-size: var(--expression-size);
+  line-height: 1.85; overflow-wrap: anywhere;
+}
+.answer-sentence ruby { ruby-position: over; ruby-align: center; }
+.answer-sentence rt {
+  font-size: var(--ruby-size); color: var(--accent-reading-color);
 }
 /* Fallback appearance before the script applies the chosen theme. */
 .definition, .answer-pitch {
@@ -315,6 +337,16 @@ html { overflow-y: scroll; }
 .definition p { margin: 0 0 0.6em; }
 .definition p:last-child { margin-bottom: 0; }
 .definition a { color: var(--blue); }
+.definition .dictionary-label {
+  display: none !important;
+}
+.definition .dictionary-divider {
+  border: 0; height: 1px;
+  width: 40%; max-width: 180px;
+  margin: 1.1em auto;
+  background: linear-gradient(to right, transparent, var(--accent-color), transparent);
+  opacity: 0.35;
+}
 .answer-image {
   flex: 0 0 auto;
   margin-top: var(--image-gap); padding: 10px;

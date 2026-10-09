@@ -1,10 +1,15 @@
 <main class="jp-note">
   <section class="sentence-panel">
-    <div class="vertical-sentence"><span class="sentence-prefix">{{cloze-prefix}}</span><span class="target-word">{{cloze-body}}</span><span class="sentence-suffix">{{cloze-suffix}}</span></div>
+    {{#UseVocabCard}}<div class="vertical-sentence vocab-display"><span class="sentence-prefix"></span><span class="target-word">{{expression}}</span><span class="sentence-suffix"></span></div>{{/UseVocabCard}}
+    {{^UseVocabCard}}
+      {{#cloze-body}}<div class="vertical-sentence"><span class="sentence-prefix">{{cloze-prefix}}</span><span class="target-word">{{cloze-body}}</span><span class="sentence-suffix">{{cloze-suffix}}</span></div>{{/cloze-body}}
+      {{^cloze-body}}<div class="vertical-sentence">{{#sentence}}{{kanji:sentence}}{{/sentence}}{{^sentence}}{{kanji:sentence-furigana-plain}}{{/sentence}}</div>{{/cloze-body}}
+    {{/UseVocabCard}}
   </section>
 </main>
-<div class="furigana-source" hidden data-source="sentence">{{sentence-furigana-plain}}</div>
+{{^UseVocabCard}}<div class="furigana-source" hidden data-source="sentence">{{sentence-furigana-plain}}</div>{{/UseVocabCard}}
 <div class="furigana-source" hidden data-source="word">{{furigana-plain}}</div>
+{{#UseVocabCard}}<div class="furigana-source" hidden data-source="sentence">{{sentence-furigana-plain}}</div>{{/UseVocabCard}}
 
 <script>
 (function () {
