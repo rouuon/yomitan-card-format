@@ -137,6 +137,26 @@
     }
     accepted.push(item);
   }
+  // 来る changes the reading of 来 itself when conjugated. For sentence cards,
+  // use the actual cloze ending rather than copying the dictionary-form く.
+  var clozeSource = document.querySelector('.front-fields [data-front-field="cloze-body"]');
+  var cloze = clozeSource ? text(clozeSource) : "";
+  function kuruReading(ending) {
+    // 来んな contracts 来るな (くんな), unlike the negative 来ん (こん).
+    if (/^んな/.test(ending)) return "く";
+    if (/^(?:ない|なか|なく|なけ|なさそう|なきゃ|ぬ|ず|ん|られ|させ|よう|い)/.test(ending)) return "こ";
+    // Colloquial potential 来れる also uses こ, but 来れば uses く.
+    if (/^れ(?:る|た|て|ない|なか|なく|なけ|ます|まし|ませ|れば)/.test(ending)) return "こ";
+    if (/^(?:た|て|ます|まし|ませ|そう|なさ(?:い|る|っ)|ながら|に|つつ)/.test(ending)) return "き";
+    if (/^(?:る|れば|れど|りゃ|まい)/.test(ending)) return "く";
+    return null;
+  }
+  if (!root.querySelector(".vocab-display") && cloze && cloze === target) {
+    accepted.forEach(function (e) {
+      if (target.slice(e.start, e.end) !== "来" || !/^[くきこ]$/.test(e.reading)) return;
+      e.reading = kuruReading(cloze.slice(e.end)) || e.reading;
+    });
+  }
   function positions() {
     var walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, {
       acceptNode:function (n) {
