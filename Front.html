@@ -10,8 +10,8 @@
   <div data-front-display="sentence"><div class="vertical-sentence">{{kanji:sentence}}</div></div>
   <div data-front-display="sentence-furigana"><div class="vertical-sentence">{{kanji:sentence-furigana-plain}}</div></div>
 </div>
-<div class="furigana-source" hidden data-source="sentence">{{sentence-furigana-plain}}</div>
 <div class="furigana-source" hidden data-source="word">{{furigana-plain}}</div>
+<div class="furigana-source" hidden data-source="sentence">{{sentence-furigana-plain}}</div>
 
 <script>
 (function () {
@@ -30,12 +30,6 @@
   var panel = root.querySelector(".sentence-panel");
   panel.textContent = "";
   while (source.firstChild) panel.appendChild(source.firstChild);
-  // Preserve the furigana source priority used by the vocabulary card.
-  if (vocab) {
-    var sentence = document.querySelector('.furigana-source[data-source="sentence"]');
-    var word = document.querySelector('.furigana-source[data-source="word"]');
-    word.parentNode.insertBefore(sentence, word.nextSibling);
-  }
 })();
 </script>
 
