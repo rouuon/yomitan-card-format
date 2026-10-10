@@ -82,7 +82,6 @@
   --corner-radius: 14px;
   /* Space to keep for an image when the definition needs to scroll. */
   --image-reserved-height: 240px;
-  --definition-min-visible: 90px;
   --image-gap: 20px;
   --cloze-line-color: var(--fg-main);
   --cloze-line-width: 2px;
@@ -179,8 +178,13 @@ html { overflow-y: scroll; }
   flex-wrap: wrap; margin-bottom: 18px; flex: 0 0 auto;
 }
 .answer-expression {
+  text-decoration: none;
   font-family: var(--jp-font); font-size: var(--expression-size);
   font-weight: 700; color: var(--cloze-color); overflow-wrap: anywhere;
+}
+.answer-expression:hover { text-decoration: underline; cursor: pointer; }
+.answer-expression:focus-visible {
+  outline: 2px solid currentColor; outline-offset: 3px;
 }
 /* A nonempty UseVocabCard field moves the example sentence to the answer. */
 .answer-sentence {
@@ -203,7 +207,7 @@ html { overflow-y: scroll; }
 .answer-pitch {
   font-family: var(--jp-font); font-size: var(--pitch-size);
   font-weight: 400; color: var(--fg-main); line-height: 1.65;
-  min-width: 0; max-width: 100%; overflow-x: auto;
+  min-width: 0; max-width: 100%; overflow: visible;
   padding: var(--pitch-panel-padding);
   border-left: none;
   border-radius: var(--pitch-panel-radius);
@@ -313,22 +317,28 @@ html { overflow-y: scroll; }
 @media (prefers-reduced-motion: reduce) {
   .answer-audio :is(.replay-button, .soundLink, .replaybutton) { transition: none; }
 }
-/* Flex computes the space remaining after the heading and optional image. */
+/* Definitions take their natural height first; images use the remaining space.
+   Long definitions scroll while the image keeps up to 40% of the content area. */
+.answer-content {
+  flex: 1 1 auto; min-width: 0; min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, max-content);
+}
+.answer-content:has(.answer-image) {
+  grid-template-rows: minmax(0, max-content) minmax(min(var(--image-reserved-height), 40%), 1fr);
+  row-gap: var(--image-gap);
+}
 .definition {
-  flex: 0 1 auto; min-height: 0;
+  min-height: 0;
   overflow-y: auto; overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   border-left: none;
   padding: 14px 16px;
   border-radius: 0 var(--corner-radius) var(--corner-radius) 0;
-  /* Rounded caps on the straight left accent; stays fixed during scrolling. */
+  /* Straight left accent; stays fixed during scrolling. */
   background:
-    radial-gradient(circle, var(--accent-color) 1.5px, transparent 1.5px)
-      left top / 3px 3px no-repeat,
-    radial-gradient(circle, var(--accent-color) 1.5px, transparent 1.5px)
-      left bottom / 3px 3px no-repeat,
     linear-gradient(var(--accent-color), var(--accent-color))
-      left center / 3px calc(100% - 3px) no-repeat
+      left center / 3px 100% no-repeat
       var(--accent-background);
   font-size: var(--definition-size); line-height: 1.65;
   overflow-wrap: anywhere;
@@ -340,25 +350,57 @@ html { overflow-y: scroll; }
 .definition .dictionary-label {
   display: none !important;
 }
-.definition .dictionary-divider {
-  border: 0; height: 1px;
-  width: 40%; max-width: 180px;
-  margin: 1.1em auto;
-  background: linear-gradient(to right, transparent, var(--accent-color), transparent);
-  opacity: 0.35;
+.dictionary-section + .dictionary-section { margin-top: 0.8em; }
+.dictionary-toggle {
+  display: flex; align-items: center; gap: 0.6em;
+  padding: 0.35em 0; cursor: pointer; list-style: none;
+}
+.dictionary-toggle::-webkit-details-marker { display: none; }
+.dictionary-separator {
+  display: flex; align-items: center; gap: 0.6em;
+  flex: 1; min-width: 0;
+}
+.dictionary-separator::before,
+.dictionary-separator::after {
+  content: ""; flex: 1; height: 1px;
+  background: var(--accent-color); opacity: 0.35;
+}
+.dictionary-name {
+  min-width: 0; max-width: 75%;
+  font-size: 0.8em; color: var(--fg-dim); text-align: center;
+}
+.dictionary-section[open] > .dictionary-toggle .dictionary-name,
+.dictionary-section[open] > .dictionary-toggle .dictionary-separator::before { display: none; }
+.dictionary-triangle {
+  width: 0; height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid var(--accent-color);
+  opacity: 0.65; transition: transform 150ms ease;
+}
+.dictionary-section[open] > .dictionary-toggle .dictionary-triangle { transform: rotate(90deg); }
+.dictionary-section[open] > .dictionary-toggle { margin-bottom: 0.4em; }
+.dictionary-toggle:focus-visible {
+  outline: 2px solid var(--accent-color); outline-offset: 3px;
+  border-radius: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dictionary-triangle { transition: none; }
 }
 .answer-image {
-  flex: 0 0 auto;
-  margin-top: var(--image-gap); padding: 10px;
+  min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden; padding: 10px;
   border-radius: var(--corner-radius);
   background: var(--image-background); text-align: center;
 }
 .answer-image img {
-  display: block; max-width: 100%;
-  max-height: 100%;
+  display: block; flex: 0 1 auto; align-self: center;
+  min-width: 0; min-height: 0; max-width: 100%;
   width: auto; height: auto; margin: 0 auto;
-  object-fit: contain; border-radius: 0;
+  object-fit: scale-down; border-radius: 0;
 }
+.answer-image :is(p, div, a, span):has(img) { display: contents; }
 .answer-image p, .answer-image > div { margin: 0; }
 @media (max-width: 600px) {
   .card { padding: var(--mobile-page-padding); }
@@ -453,9 +495,13 @@ html[data-note-layout="vertical"] .vertical-sentence {
 }
 
 
-/* Japanese pitch names: hover or keyboard focus. */
+/* Japanese pitch names: CSS places the tooltip below its diagram. */
+.pitch-tooltip-target { position: relative; display: inline-block; }
 .pitch-name-tooltip {
-  position: fixed; z-index: 10000;
+  position: absolute; z-index: 10000;
+  left: 50%; top: calc(100% + 8px); transform: translateX(-50%);
+  width: max-content;
+  visibility: hidden; max-width: calc(100vw - 32px);
   pointer-events: none;
   padding: 12px 14px 8px;
   border: 1px solid var(--border); border-radius: 8px;
@@ -464,7 +510,8 @@ html[data-note-layout="vertical"] .vertical-sentence {
   writing-mode: horizontal-tb;
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
 }
-.pitch-name-tooltip[hidden] { display: none !important; }
+.pitch-tooltip-target:hover > .pitch-name-tooltip,
+.pitch-tooltip-target:focus > .pitch-name-tooltip { visibility: visible; }
 .pitch-name-tooltip ruby { ruby-align: center; ruby-position: over; }
 .pitch-name-tooltip rt {
   font-size: 0.55em; line-height: 1; color: var(--fg-main);

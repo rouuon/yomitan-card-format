@@ -1,15 +1,43 @@
 <main class="jp-note">
-  <section class="sentence-panel">
-    {{#UseVocabCard}}<div class="vertical-sentence vocab-display"><span class="sentence-prefix"></span><span class="target-word">{{expression}}</span><span class="sentence-suffix"></span></div>{{/UseVocabCard}}
-    {{^UseVocabCard}}
-      {{#cloze-body}}<div class="vertical-sentence"><span class="sentence-prefix">{{cloze-prefix}}</span><span class="target-word">{{cloze-body}}</span><span class="sentence-suffix">{{cloze-suffix}}</span></div>{{/cloze-body}}
-      {{^cloze-body}}<div class="vertical-sentence">{{#sentence}}{{kanji:sentence}}{{/sentence}}{{^sentence}}{{kanji:sentence-furigana-plain}}{{/sentence}}</div>{{/cloze-body}}
-    {{/UseVocabCard}}
-  </section>
+  <section class="sentence-panel"></section>
 </main>
-{{^UseVocabCard}}<div class="furigana-source" hidden data-source="sentence">{{sentence-furigana-plain}}</div>{{/UseVocabCard}}
+<div class="front-fields" hidden>
+  <div data-front-field="UseVocabCard">{{UseVocabCard}}</div>
+  <div data-front-field="cloze-body">{{cloze-body}}</div>
+  <div data-front-field="sentence">{{sentence}}</div>
+  <div data-front-display="vocab"><div class="vertical-sentence vocab-display"><span class="sentence-prefix"></span><span class="target-word">{{expression}}</span><span class="sentence-suffix"></span></div></div>
+  <div data-front-display="cloze"><div class="vertical-sentence"><span class="sentence-prefix">{{cloze-prefix}}</span><span class="target-word">{{cloze-body}}</span><span class="sentence-suffix">{{cloze-suffix}}</span></div></div>
+  <div data-front-display="sentence"><div class="vertical-sentence">{{kanji:sentence}}</div></div>
+  <div data-front-display="sentence-furigana"><div class="vertical-sentence">{{kanji:sentence-furigana-plain}}</div></div>
+</div>
+<div class="furigana-source" hidden data-source="sentence">{{sentence-furigana-plain}}</div>
 <div class="furigana-source" hidden data-source="word">{{furigana-plain}}</div>
-{{#UseVocabCard}}<div class="furigana-source" hidden data-source="sentence">{{sentence-furigana-plain}}</div>{{/UseVocabCard}}
+
+<script>
+(function () {
+  var root = document.querySelector(".jp-note");
+  var fields = document.querySelector(".front-fields");
+  if (!root || !fields || root.getAttribute("data-front-ready")) return;
+  root.setAttribute("data-front-ready", "true");
+  function filled(name) {
+    var source = fields.querySelector('[data-front-field="' + name + '"]');
+    return !!source && (!!source.textContent.trim() || !!source.querySelector("img, svg, audio, video, object, iframe"));
+  }
+  var vocab = filled("UseVocabCard");
+  var choice = vocab ? "vocab" : filled("cloze-body") ? "cloze" :
+    filled("sentence") ? "sentence" : "sentence-furigana";
+  var source = fields.querySelector('[data-front-display="' + choice + '"]');
+  var panel = root.querySelector(".sentence-panel");
+  panel.textContent = "";
+  while (source.firstChild) panel.appendChild(source.firstChild);
+  // Preserve the furigana source priority used by the vocabulary card.
+  if (vocab) {
+    var sentence = document.querySelector('.furigana-source[data-source="sentence"]');
+    var word = document.querySelector('.furigana-source[data-source="word"]');
+    word.parentNode.insertBefore(sentence, word.nextSibling);
+  }
+})();
+</script>
 
 <script>
 (function () {

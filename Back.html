@@ -2,54 +2,118 @@
   {{FrontSide}}
   <aside class="answer-panel">
     <div class="answer-heading">
-      <div class="answer-expression">{{expression}}</div>
-      {{#pitch-accents}}<div class="answer-pitch">{{pitch-accents}}</div>{{/pitch-accents}}
-      {{^pitch-accents}}{{#reading}}<div class="answer-pitch answer-reading">{{reading}}</div>{{/reading}}{{/pitch-accents}}
+      <a class="answer-expression" href="https://www.google.com/search?q={{expression}}" target="_blank" rel="noopener noreferrer">{{expression}}</a>
+      <div class="answer-pitch">{{pitch-accents}}</div>
       <div class="answer-audio">
-        {{#audio}}<span>{{audio}}</span>{{/audio}}
-        {{^audio}}{{^SentenceAudio}}<span class="expression-tts" hidden></span>{{/SentenceAudio}}{{/audio}}
-        {{#SentenceAudio}}<span>{{SentenceAudio}}</span>{{/SentenceAudio}}
+        <span data-audio-field="audio">{{audio}}</span>
+        <span class="expression-tts" hidden></span>
+        <span data-audio-field="SentenceAudio">{{SentenceAudio}}</span>
       </div>
     </div>
-    {{#UseVocabCard}}
-    <div class="answer-sentence" lang="ja">
-      {{#sentence-furigana-plain}}{{furigana:sentence-furigana-plain}}{{/sentence-furigana-plain}}
-      {{^sentence-furigana-plain}}
-        {{#sentence}}{{sentence}}{{/sentence}}
-        {{^sentence}}<span class="sentence-prefix">{{cloze-prefix}}</span><span class="target-word">{{cloze-body}}</span><span class="sentence-suffix">{{cloze-suffix}}</span>{{/sentence}}
-      {{/sentence-furigana-plain}}
+    <div class="answer-sentence" lang="ja"></div>
+    <div class="answer-content">
+      <div class="definition"></div>
+      <div class="answer-image">{{Image}}</div>
     </div>
-    {{/UseVocabCard}}
-    <div class="definition">
-      <!-- Prefer dictionary-labeled plain definitions; keep the existing fallback order. -->
-      {{#glossary-plain}}<div class="glossary-plain">{{glossary-plain}}</div>{{/glossary-plain}}
-      {{^glossary-plain}}
-        {{#glossary-plain-no-dictionary}}{{glossary-plain-no-dictionary}}{{/glossary-plain-no-dictionary}}
-        {{^glossary-plain-no-dictionary}}
-          {{#glossary-no-dictionary}}{{glossary-no-dictionary}}{{/glossary-no-dictionary}}
-          {{^glossary-no-dictionary}}
-            {{#glossary-first-no-dictionary}}{{glossary-first-no-dictionary}}{{/glossary-first-no-dictionary}}
-            {{^glossary-first-no-dictionary}}
-              {{#glossary-first-brief}}{{glossary-first-brief}}{{/glossary-first-brief}}
-              {{^glossary-first-brief}}
-                {{#glossary-first}}{{glossary-first}}{{/glossary-first}}
-                {{^glossary-first}}
-                  {{#glossary-brief}}{{glossary-brief}}{{/glossary-brief}}
-                  {{^glossary-brief}}
-                    {{#glossary}}{{glossary}}{{/glossary}}
-                  {{/glossary-brief}}
-                {{/glossary-first}}
-              {{/glossary-first-brief}}
-            {{/glossary-first-no-dictionary}}
-          {{/glossary-no-dictionary}}
-        {{/glossary-plain-no-dictionary}}
-      {{/glossary-plain}}
-    </div>
-    {{#Image}}<div class="answer-image">{{Image}}</div>{{/Image}}
   </aside>
 </div>
 
+<div class="answer-fields" hidden>
+  <div data-answer-field="UseVocabCard">{{UseVocabCard}}</div>
+  <div data-answer-field="reading">{{reading}}</div>
+  <div data-answer-field="sentence-furigana-plain">{{sentence-furigana-plain}}</div>
+  <div data-answer-field="sentence">{{sentence}}</div>
+  <div data-answer-display="sentence-furigana">{{furigana:sentence-furigana-plain}}</div>
+  <div data-answer-display="cloze"><span class="sentence-prefix">{{cloze-prefix}}</span><span class="target-word">{{cloze-body}}</span><span class="sentence-suffix">{{cloze-suffix}}</span></div>
+</div>
+
+<script>
+(function () {
+  var panel = document.querySelector(".answer-panel");
+  var fields = document.querySelector(".answer-fields");
+  if (!panel || !fields || panel.getAttribute("data-answer-ready")) return;
+  panel.setAttribute("data-answer-ready", "true");
+  function filled(source) {
+    return !!source && (!!source.textContent.trim() ||
+      !!source.querySelector("img, svg, audio, video, object, iframe, .soundLink, .replay-button, .replaybutton"));
+  }
+  function field(name) { return fields.querySelector('[data-answer-field="' + name + '"]'); }
+  function move(source, target) {
+    target.textContent = "";
+    while (source.firstChild) target.appendChild(source.firstChild);
+  }
+  var pitch = panel.querySelector(".answer-pitch");
+  if (!filled(pitch)) {
+    if (filled(field("reading"))) {
+      pitch.classList.add("answer-reading");
+      move(field("reading"), pitch);
+    } else pitch.remove();
+  }
+  var hasAudio = false;
+  Array.prototype.forEach.call(panel.querySelectorAll("[data-audio-field]"), function (source) {
+    if (filled(source)) hasAudio = true;
+    else source.remove();
+  });
+  if (hasAudio) panel.querySelector(".expression-tts").remove();
+  var sentence = panel.querySelector(".answer-sentence");
+  if (filled(field("UseVocabCard"))) {
+    var source = filled(field("sentence-furigana-plain")) ?
+      fields.querySelector('[data-answer-display="sentence-furigana"]') :
+      filled(field("sentence")) ? field("sentence") :
+      fields.querySelector('[data-answer-display="cloze"]');
+    move(source, sentence);
+  } else sentence.remove();
+  var image = panel.querySelector(".answer-image");
+  if (!filled(image)) image.remove();
+})();
+</script>
+
 <div class="pitch-category-source" hidden>{{pitch-accent-categories}}</div>
+
+<div class="glossary-sources" hidden>
+  <div data-glossary-field="glossary-plain">{{glossary-plain}}</div>
+  <div data-glossary-field="glossary-plain-no-dictionary">{{glossary-plain-no-dictionary}}</div>
+  <div data-glossary-field="glossary-no-dictionary">{{glossary-no-dictionary}}</div>
+  <div data-glossary-field="glossary-first-no-dictionary">{{glossary-first-no-dictionary}}</div>
+  <div data-glossary-field="glossary-first-brief">{{glossary-first-brief}}</div>
+  <div data-glossary-field="glossary-first">{{glossary-first}}</div>
+  <div data-glossary-field="glossary-brief">{{glossary-brief}}</div>
+  <div data-glossary-field="glossary">{{glossary}}</div>
+</div>
+
+<script>
+(function () {
+  var definition = document.querySelector(".definition");
+  var sources = document.querySelector(".glossary-sources");
+  if (!definition || !sources) return;
+  // First filled field wins; edit this list to change the fallback priority.
+  var fieldOrder = [
+    "glossary-plain",
+    "glossary-plain-no-dictionary",
+    "glossary-no-dictionary",
+    "glossary-first-no-dictionary",
+    "glossary-first-brief",
+    "glossary-first",
+    "glossary-brief",
+    "glossary"
+  ];
+  for (var i = 0; i < fieldOrder.length; i++) {
+    var field = fieldOrder[i];
+    var source = sources.querySelector('[data-glossary-field="' + field + '"]');
+    if (!source || !source.innerHTML.trim()) continue;
+    definition.textContent = "";
+    if (field === "glossary-plain") {
+      var glossary = document.createElement("div");
+      glossary.className = "glossary-plain";
+      while (source.firstChild) glossary.appendChild(source.firstChild);
+      definition.appendChild(glossary);
+    } else {
+      while (source.firstChild) definition.appendChild(source.firstChild);
+    }
+    break;
+  }
+})();
+</script>
 
 <script>
 (function () {
@@ -99,13 +163,8 @@
   var configuredOrder = getComputedStyle(document.documentElement)
     .getPropertyValue("--dictionary-order").trim().replace(/^(["'])(.*)\1$/, "$2")
     .split("|").map(dictionaryName).filter(Boolean);
-  function dividerBefore(node) {
-    var divider = document.createElement("hr");
-    divider.className = "dictionary-divider";
-    node.parentNode.insertBefore(divider, node);
-  }
   // Work backwards so earlier text offsets remain valid after inserting labels.
-  headers.slice().reverse().forEach(function (item, reversedIndex) {
+  headers.slice().reverse().forEach(function (item) {
     var range = document.createRange();
     range.setStart(item.start.node, item.start.offset);
     range.setEnd(item.end.node, item.end.offset);
@@ -120,9 +179,8 @@
     var next = label.nextSibling;
     while (next && next.nodeType === 3 && !next.textContent.trim()) next = next.nextSibling;
     if (next && next.nodeType === 1 && next.tagName === "BR") next.remove();
-    if (!configuredOrder.length && reversedIndex < headers.length - 1) dividerBefore(label);
   });
-  if (!configuredOrder.length || !headers.length) return;
+  if (!headers.length) return;
 
   // Include a label's enclosing block when it starts that block, preserving lists
   // and other dictionary markup when moving the complete section.
@@ -145,9 +203,28 @@
     range.setStartBefore(item.boundary);
     if (index + 1 < headers.length) range.setEndBefore(headers[index + 1].boundary);
     else range.setEnd(glossary, glossary.childNodes.length);
-    var section = document.createElement("div");
+    var section = document.createElement("details");
     section.className = "dictionary-section";
-    section.appendChild(range.cloneContents());
+    section.open = true;
+    var toggle = document.createElement("summary");
+    toggle.className = "dictionary-toggle";
+    toggle.setAttribute("aria-label", "Toggle definitions from " + item.name);
+    var triangle = document.createElement("span");
+    triangle.className = "dictionary-triangle";
+    triangle.setAttribute("aria-hidden", "true");
+    toggle.appendChild(triangle);
+    var separator = document.createElement("span");
+    separator.className = "dictionary-separator";
+    var name = document.createElement("span");
+    name.className = "dictionary-name";
+    name.textContent = item.name;
+    separator.appendChild(name);
+    toggle.appendChild(separator);
+    var body = document.createElement("div");
+    body.className = "dictionary-body";
+    body.appendChild(range.cloneContents());
+    section.appendChild(toggle);
+    section.appendChild(body);
     var rank = configuredOrder.indexOf(item.name);
     return {node:section, index:index, rank:rank === -1 ? configuredOrder.length : rank};
   });
@@ -159,9 +236,8 @@
   glossary.textContent = "";
   glossary.appendChild(preamble);
   sections.sort(function (a, b) { return a.rank - b.rank || a.index - b.index; });
-  sections.forEach(function (item, index) {
+  sections.forEach(function (item) {
     glossary.appendChild(item.node);
-    if (index) dividerBefore(item.node);
   });
 })();
 </script>
@@ -256,7 +332,6 @@
     .getPropertyValue("--verticaltext").trim().toLowerCase();
   document.documentElement.setAttribute("data-note-layout",
     !layoutSetting || layoutSetting === "default" ? "vertical" : "horizontal");
-  if (window.__jpPitchTooltipCleanup) window.__jpPitchTooltipCleanup();
   var pitch = document.querySelector(".answer-pitch");
   var definition = document.querySelector(".definition");
   var answerSide = document.querySelector(".answer-side");
@@ -292,7 +367,7 @@
     theme(pitch, single || fallback);
   }
 
-  // Fixed-position tooltip stays outside the pitch box's scroll clipping.
+  // JavaScript supplies the name; CSS handles tooltip visibility and placement.
   var patternNames = {
     heiban: ["平板型", "へいばんがた"],
     atamadaka: ["頭高型", "あたまだかがた"],
@@ -300,57 +375,22 @@
     odaka: ["尾高型", "おだかがた"],
     kifuku: ["起伏型", "きふくがた"]
   };
-  var tooltip = null, tooltipTarget = null, tooltipListeners = [];
-  function hideTooltip() {
-    if (tooltip) tooltip.hidden = true;
-    tooltipTarget = null;
-  }
-  function positionTooltip() {
-    if (!tooltip || !tooltipTarget) return;
-    var rect = tooltipTarget.getBoundingClientRect();
-    var box = tooltip.getBoundingClientRect();
-    var left = Math.max(8, Math.min(rect.left + (rect.width - box.width) / 2,
-      window.innerWidth - box.width - 8));
-    var top = rect.bottom + 8;
-    if (top + box.height > window.innerHeight - 8) top = rect.top - box.height - 8;
-    tooltip.style.left = left + "px";
-    tooltip.style.top = Math.max(8, top) + "px";
-  }
-  function listen(target, event, handler, capture) {
-    target.addEventListener(event, handler, !!capture);
-    tooltipListeners.push(function () { target.removeEventListener(event, handler, !!capture); });
-  }
   function nameTooltip(target, category) {
     if (pitch.classList.contains("answer-reading")) return;
+    var previous = target.querySelector(".pitch-name-tooltip");
+    if (previous) previous.remove();
     var name = patternNames[category] || ["判定不明", "はんていふめい"];
+    target.classList.add("pitch-tooltip-target");
     target.setAttribute("tabindex", "0");
     target.setAttribute("aria-label", target.textContent.trim() + "：" + name[0] + "（" + name[1] + "）");
-    function show() {
-      if (!tooltip) {
-        tooltip = document.createElement("div");
-        tooltip.className = "pitch-name-tooltip";
-        tooltip.setAttribute("role", "tooltip");
-        document.body.appendChild(tooltip);
-      }
-      var ruby = document.createElement("ruby"), reading = document.createElement("rt");
-      ruby.textContent = name[0]; reading.textContent = name[1]; ruby.appendChild(reading);
-      tooltip.textContent = ""; tooltip.appendChild(ruby);
-      tooltip.hidden = false; tooltipTarget = target;
-      positionTooltip();
-    }
-    listen(target, "mouseenter", show);
-    listen(target, "mouseleave", hideTooltip);
-    listen(target, "focus", show);
-    listen(target, "blur", hideTooltip);
+    var tooltip = document.createElement("span");
+    tooltip.className = "pitch-name-tooltip";
+    tooltip.setAttribute("role", "tooltip");
+    var ruby = document.createElement("ruby"), reading = document.createElement("rt");
+    ruby.textContent = name[0]; reading.textContent = name[1]; ruby.appendChild(reading);
+    tooltip.appendChild(ruby);
+    target.appendChild(tooltip);
   }
-  listen(window, "resize", hideTooltip);
-  listen(window, "scroll", hideTooltip, true);
-  listen(document, "keydown", function (event) { if (event.key === "Escape") hideTooltip(); });
-  window.__jpPitchTooltipCleanup = function () {
-    tooltipListeners.forEach(function (remove) { remove(); });
-    if (tooltip) tooltip.remove();
-    window.__jpPitchTooltipCleanup = null;
-  };
 
   var inflectedOnly = categories.indexOf("kifuku") !== -1 && categories.every(function (name) {
     return name === "heiban" || name === "kifuku";
@@ -443,78 +483,5 @@
     // Ambiguous line patterns retain their original line color.
     if (category) morae.forEach(function (m) { colorLine(m.line, category); });
   });
-})();
-</script>
-
-<script>
-(function () {
-  if (window.__jpImageSizingCleanup) window.__jpImageSizingCleanup();
-  var panel = document.querySelector(".answer-panel");
-  var box = panel && panel.querySelector(".answer-image");
-  var definition = panel && panel.querySelector(".definition");
-  if (!box || !definition) return;
-  var heading = panel.querySelector(".answer-heading");
-  var sentence = panel.querySelector(".answer-sentence");
-  var images = Array.prototype.slice.call(box.querySelectorAll("img"));
-  if (!images.length) return;
-  var frame = null;
-  function px(value) { return parseFloat(value) || 0; }
-  function outerHeight(element) {
-    if (!element) return 0;
-    var style = getComputedStyle(element);
-    return element.getBoundingClientRect().height + px(style.marginTop) + px(style.marginBottom);
-  }
-  function fit() {
-    frame = null;
-    if (!panel.isConnected) return;
-    var panelStyle = getComputedStyle(panel);
-    var boxStyle = getComputedStyle(box);
-    var usableHeight = panel.clientHeight - px(panelStyle.paddingTop) - px(panelStyle.paddingBottom);
-    var imagePadding = px(boxStyle.paddingTop) + px(boxStyle.paddingBottom);
-    var available = Math.max(0, usableHeight - outerHeight(heading) - outerHeight(sentence) -
-      px(boxStyle.marginTop) - px(boxStyle.marginBottom) - imagePadding);
-    var width = Math.max(0, box.clientWidth - px(boxStyle.paddingLeft) - px(boxStyle.paddingRight));
-    var fitted = images.map(function (img) {
-      var scale = img.naturalWidth ? Math.min(1, width / img.naturalWidth) : 0;
-      return {img:img, width:img.naturalWidth * scale, height:img.naturalHeight * scale};
-    });
-    var desiredHeight = fitted.reduce(function (sum, item) { return sum + item.height; }, 0);
-    if (!desiredHeight) return;
-    var definitionHeight = definition.scrollHeight;
-    var reserve = Math.min(px(panelStyle.getPropertyValue("--image-reserved-height")), available * 0.4);
-    var minimumDefinition = Math.min(definitionHeight,
-      px(panelStyle.getPropertyValue("--definition-min-visible")));
-    var height = Math.min(desiredHeight, Math.max(0, available - minimumDefinition),
-      Math.max(0, available - definitionHeight, reserve));
-    var scale = Math.min(1, height / desiredHeight);
-    fitted.forEach(function (item) {
-      if (!item.img.naturalWidth) return;
-      // The same factor for width and height preserves the natural proportions.
-      var w = (item.width * scale).toFixed(2) + "px";
-      var h = (item.height * scale).toFixed(2) + "px";
-      if (item.img.style.width !== w) item.img.style.width = w;
-      if (item.img.style.height !== h) item.img.style.height = h;
-    });
-  }
-  function schedule() {
-    if (frame === null) frame = requestAnimationFrame(fit);
-  }
-  var observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedule) : null;
-  if (observer) {
-    observer.observe(panel);
-    observer.observe(definition);
-    if (heading) observer.observe(heading);
-    if (sentence) observer.observe(sentence);
-  }
-  images.forEach(function (img) { img.addEventListener("load", schedule); });
-  window.addEventListener("resize", schedule);
-  window.__jpImageSizingCleanup = function () {
-    if (observer) observer.disconnect();
-    if (frame !== null) cancelAnimationFrame(frame);
-    images.forEach(function (img) { img.removeEventListener("load", schedule); });
-    window.removeEventListener("resize", schedule);
-    window.__jpImageSizingCleanup = null;
-  };
-  schedule();
 })();
 </script>
